@@ -1,5 +1,52 @@
 # ury-vulns
 
+### Summary
+
+A critical SQL injection vulnerability has been identified in the URY Restaurant Management System's POS (Point of Sale) module. This vulnerability allows unauthenticated or low-privileged attackers to bypass input sanitization and execute arbitrary SQL queries against the backend MariaDB database. Successful exploitation could lead to unauthorized data access, data exfiltration, data modification, or complete database compromise.
+
+## Vulnerability Details
+
+### Technical Summary
+
+The `overrided_past_order_list` API endpoint in the POS extension module improperly handles user-supplied input in the `search_term` parameter. The application uses Python string formatting (`"%{}%".format()`) to construct SQL queries instead of parameterized queries, allowing attackers to inject malicious SQL code.
+
+### Affected Component
+
+- **File**: `ury/ury/api/pos_extend.py`
+- **Function**: `overrided_past_order_list()`
+- **Lines**: 56, 63
+- **Endpoint**: `/api/method/ury.ury.api.pos_extend.overrided_past_order_list`
+- **HTTP Method**: POST
+- **Authentication**: Required (but low privilege sufficient)
+
+### Vulnerability Classification
+
+| Classification | Details |
+|----------------|---------|
+| **CWE** | CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection') |
+| **OWASP Top 10** | Injection |
+| **WASC** | WASC-19: SQL Injection |
+| **CAPEC** | CAPEC-66: SQL Injection |
+
+### CVSS v3.1 Score
+
+**Base Score: 8.5 (HIGH)**
+
+```
+CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:L/A:N
+```
+
+**Vector Breakdown:**
+- **Attack Vector (AV)**: Network - Exploitable remotely
+- **Attack Complexity (AC)**: Low - No special conditions required
+- **Privileges Required (PR)**: Low - Basic user account sufficient
+- **User Interaction (UI)**: None - No user interaction needed
+- **Scope (S)**: Changed - Can affect resources beyond vulnerable component
+- **Confidentiality (C)**: High - Total information disclosure
+- **Integrity (I)**: Low - Some modification possible
+- **Availability (A)**: None - No direct availability impact
+
+
 ### PoC
 
 ```
