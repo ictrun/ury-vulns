@@ -145,3 +145,138 @@ Table: tabPOS Invoice
 | SINV-00004 | Secret Branch | Draft    | 2025-10-28 11:48:01 | NULL     | Secret Customer | 2025-10-28 11:48:01 | 999.990000  | NULL         | NULL         | 0               | NULL             | Secret Room            |
 +------------+---------------+----------+---------------------+----------+-----------------+---------------------+-------------+--------------+--------------+-----------------+------------------+------------------------+
 ```
+
+## Impact Assessment
+
+### Immediate Impacts
+
+1. **Unauthorized Data Access**
+   - Attackers can bypass access controls and retrieve sensitive business data
+   - Cross-branch data leakage (e.g., accessing "Secret Branch" orders)
+   - Extraction of customer PII, financial records, and transaction history
+
+2. **Credential Theft**
+   - User passwords (potentially hashed) can be extracted via UNION injection
+   - API keys and session tokens may be exposed
+   - Privilege escalation through stolen admin credentials
+
+3. **Data Manipulation**
+   - Modification of order statuses and amounts
+   - Insertion of fraudulent transactions
+   - Deletion of audit trails
+
+4. **Business Logic Bypass**
+   - Circumvention of branch-based access controls
+   - Manipulation of inventory and pricing data
+   - Unauthorized invoice generation or cancellation
+
+### Long-term Consequences
+
+- **Compliance Violations**: PCI DSS, GDPR, CCPA non-compliance
+- **Financial Loss**: Fraudulent transactions, regulatory fines
+- **Reputational Damage**: Loss of customer trust
+- **Legal Liability**: Data breach notification requirements
+
+## Remediation
+
+### Immediate Actions Required
+
+#### Priority 1: Apply Hotfix (Within 24 hours)
+
+**Option A: Use Parameterized Queries (Recommended)**
+
+```python
+@frappe.whitelist()
+def overrided_past_order_list(search_term, status="Draft", start=0, page_length=20):
+    # SECURE: Use Frappe's built-in sanitization
+    invoices_by_customer = frappe.db.get_all(
+        "POS Invoice",
+        filters={
+            "customer": ["like", "%{}%".format(frappe.db.escape(search_term))],  # ✓ ESCAPED
+            "status": status,
+        },
+        fields=[
+            "name", "grand_total", "customer", "posting_time",
+            "posting_date", "restaurant_table", "invoice_printed"
+        ],
+        limit_start=start,
+        limit_page_length=page_length
+    )
+
+    return invoices_by_customer
+```
+
+**Option B: Use Prepared Statements**
+
+```python
+@frappe.whitelist()
+def overrided_past_order_list(search_term, status="Draft", start=0, page_length=20):
+    # SECURE: Parameterized query
+    invoices = frappe.db.sql("""
+        SELECT name, grand_total, customer, posting_time, posting_date,
+               restaurant_table, invoice_printed
+        FROM `tabPOS Invoice`
+        WHERE customer LIKE %(search_term)s AND status = %(status)s
+        LIMIT %(start)s, %(page_length)s
+    """, {
+        'search_term': f'%{search_term}%',
+        'status': status,
+        'start': start,
+        'page_length': page_length
+    }, as_dict=True)
+
+    return invoices
+```
+
+#### Priority 2: Input Validation (Within 48 hours)
+
+```python
+def validate_search_input(search_term):
+    """Validate and sanitize search input"""
+    if not search_term:
+        return ""
+
+    # Length validation
+    if len(search_term) > 100:
+        frappe.throw(_("Search term too long (max 100 characters)"))
+
+    # Character whitelist (adjust based on requirements)
+    import re
+    if not re.match(r'^[a-zA-Z0-9\s\-_@.]+$', search_term):
+        frappe.throw(_("Invalid characters in search term"))
+
+    return search_term
+
+@frappe.whitelist()
+def overrided_past_order_list(search_term, status="Draft", start=0, page_length=20):
+    # Validate input first
+    search_term = validate_search_input(search_term)
+    # ... rest of secure implementation
+```
+
+## Verification Steps
+
+### 1. Test Vulnerable System
+
+```bash
+# Test if system is vulnerable
+curl -X POST https://your-ury-instance.com/api/method/ury.ury.api.pos_extend.overrided_past_order_list \
+  -H "Content-Type: application/json" \
+  -H "Cookie: sid=YOUR_SESSION_TOKEN" \
+  -d '{"search_term": "'\'' OR '\''1'\''='\''1", "status": "Draft"}'
+
+# If vulnerable, you'll see more records than expected
+```
+
+### 2. Verify Patch Effectiveness
+
+```bash
+# After applying patch, same request should return only matching records
+curl -X POST https://your-ury-instance.com/api/method/ury.ury.api.pos_extend.overrided_past_order_list \
+  -H "Content-Type: application/json" \
+  -H "Cookie: sid=YOUR_SESSION_TOKEN" \
+  -d '{"search_term": "'\'' OR '\''1'\''='\''1", "status": "Draft"}'
+
+# Should return: empty result or error message
+```
+
