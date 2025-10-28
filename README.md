@@ -1,6 +1,6 @@
 # URY Open Source Restaurant Management System SQL Injection
 
-Product Link : [ury](https://github.com/ury-erp/ury)
+## Product Link : [ury](https://github.com/ury-erp/ury)
 
 ### Summary
 
